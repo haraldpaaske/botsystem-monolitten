@@ -1,0 +1,75 @@
+/* navStyles.css */
+
+.navbar {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  background-color: #1b542e;
+  padding: 12px 20%;
+}
+
+.navbar a {
+  text-decoration: none;
+}
+
+.navbar button {
+  margin: 5px 2px;
+  padding: 10px 20px;
+  font-size: 16px;
+  color: #ffe491;
+  background-color: #a21c20;
+  border: solid 1px #ffe491;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+button {
+  margin: 5px 2px;
+  padding: 5px 10px;
+  font-size: 12px;
+  color: #ffe491;
+  background-color: #a21c20;
+  border: solid 1px #ffe491;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.navbar button:hover {
+  background-color: #0e2f1e;
+}
+
+button:hover {
+  background-color: #0e2f1e;
+}
+
+input {
+  margin: 5px 2px;
+  padding: 7px 14px;
+  font-size: 12px;
+  border: solid 2px #ffe491;
+  border-radius: 5px;
+  width: 200px;
+  /* You can adjust the width as needed */
+}
+
+
+/* Add media query for mobile responsiveness */
+@media (max-width: 768px) {
+  .navbar {
+    flex-direction: row;
+    /* Set it back to row for small screens */
+    flex-wrap: wrap;
+    /* Allow wrapping of buttons */
+    padding: 2px;
+  }
+
+  .navbar button {
+    margin: 5px 2px;
+    /* Adjust the margin for closer spacing */
+    width: auto;
+    /* Let buttons determine their own width */
+    border: solid 0.5px #ffe491;
+    font-size: 11px;
+    padding: 3px 6px;
+  }
+}

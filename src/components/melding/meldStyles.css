@@ -1,0 +1,69 @@
+#mform {
+  max-width: 500px;
+  margin: 20px auto;
+  padding: 30px;
+  background-color: #f7f7f7;
+  border-radius: 10px;
+  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+}
+
+#formDiv{
+  max-width: 300px;
+  margin: auto;
+}
+
+#mform label {
+  display: block;
+  margin-bottom: 20px;
+  font-weight: bold;
+}
+
+#mform select, 
+#mform input, 
+#mform textarea {
+  width: 100%;  /* Adjust this value to change the width of the inputs */
+  margin-top:5px;
+  padding: 10px ;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 16px;
+  height: 35px;
+}
+
+#mform textarea {
+  height: 100px; /* Adjust this value if you want a different initial height for the textarea */
+  padding: 10px;
+  width: 94%;
+}
+
+#antall_enheter{
+  width: 94%;
+}
+
+
+#mform button {
+  color: #ffe491;
+  background-color: #a21c20;
+
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.remove_button{
+  margin: 10px;
+  padding: 0px;
+  height: 25px;
+  width: 60px;
+  font-size: 13px;
+  border: solid 2px #ffe491;
+}
+
+button[type="submit"] {
+  font-size: 16px;
+  padding: 10px 20px;
+  border: solid 3px #ffe491;
+}
+
+#mform button:hover {
+  background-color: #0e2f1e;
+}

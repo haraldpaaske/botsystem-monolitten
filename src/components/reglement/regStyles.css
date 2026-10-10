@@ -1,0 +1,11 @@
+.reglement{
+  width: 60vw;
+  margin: auto;
+}
+
+@media (max-width: 768px) { /* Adjust breakpoint as necessary */
+  .reglement{
+    width: 80vw;
+    margin: auto;
+  }
+}

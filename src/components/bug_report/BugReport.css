@@ -1,0 +1,29 @@
+.bug-list {
+  list-style-type: none;
+  padding: 0;
+}
+
+.bug-list li {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px; /* Optional: Add some spacing between items */
+}
+
+.bug-list li::before {
+  content: "\2022"; /* Unicode character for a bullet point */
+  margin-right: 5px;
+}
+
+.bug-list li.fixed::before {
+  content: "\2705"; /* Unicode character for a checkmark (✅) */
+  color: green; /* Optional: Change the color for a fixed bug */
+}
+
+.bug-list li.not-fixed::before {
+  content: "\274C"; /* Unicode character for a cross (❌) */
+  color: red; /* Optional: Change the color for an unfixed bug */
+}
+.special-paragraphs {
+  font-size: 12px;
+  margin-top: 0px; /* Adjust as needed for spacing */
+}
