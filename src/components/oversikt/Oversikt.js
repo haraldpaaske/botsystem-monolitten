@@ -56,7 +56,7 @@ const Oversikt = (props) => {
   const playersWithoutBoter = useMemo(
     () =>
       players.filter((player) => !data.some((bot) => bot.melder === player)),
-    [players, data]
+    [players, data],
   );
 
   const handleCheckboxChange = (player) => {
@@ -90,7 +90,7 @@ const Oversikt = (props) => {
       }
 
       const saksomkostningCount = saksData.filter(
-        (entry) => entry.person === player
+        (entry) => entry.person === player,
       ).length;
       total += saksomkostningCount;
 
@@ -102,13 +102,13 @@ const Oversikt = (props) => {
       }
       return total;
     },
-    [antallBoter, data, saksData, playersWithoutBoter]
+    [antallBoter, data, saksData, playersWithoutBoter],
   );
 
   const getTotalBoter = () => {
     return players.reduce(
       (total, player) => total + getSumForPlayer(player),
-      0
+      0,
     );
   };
 
@@ -243,7 +243,7 @@ const Oversikt = (props) => {
             update(specificBotRef, updatedBot)
               .then(() => {
                 const updatedBots = data.map((bot) =>
-                  bot.id === id ? updatedBot : bot
+                  bot.id === id ? updatedBot : bot,
                 );
                 setData(updatedBots);
               })
@@ -271,7 +271,7 @@ const Oversikt = (props) => {
     const db = getDatabase();
 
     var userConfirmation = window.confirm(
-      "Vil du fortsette inn i ny bot-periode? dette vil slette alle gamle bøter og legge til de nye som ble meldt inn etter rettsak."
+      "Vil du fortsette inn i ny bot-periode? dette vil slette alle gamle bøter og legge til de nye som ble meldt inn etter rettsak.",
     );
 
     if (userConfirmation) {
@@ -334,7 +334,7 @@ const Oversikt = (props) => {
         let enheter = getSumForPlayer(player) - medbrakt[player] + 6;
         let id = Math.max(
           newBots.length + 1,
-          data.length - antallBoter + newBots.length + 1
+          data.length - antallBoter + newBots.length + 1,
         );
         const idahelle = {
           brutt,
@@ -362,7 +362,7 @@ const Oversikt = (props) => {
         let enheter = getSumForPlayer(player) - medbrakt[player];
         let id = Math.max(
           newBots.length + 1,
-          data.length - antallBoter + newBots.length + 1
+          data.length - antallBoter + newBots.length + 1,
         ); // Updated ID calculation
         const restebot = {
           brutt,
@@ -464,12 +464,12 @@ const Oversikt = (props) => {
 
         // Filter out entries for archiving (before last trial)
         const entriesToArchive = Object.values(boterData).filter(
-          (entry) => entry.id < boterCount && entry.id !== 0
+          (entry) => entry.id < boterCount && entry.id !== 0,
         ); // Exclude ID 0
 
         // Filter out entries to keep (new period entries)
         const entriesToKeep = Object.values(boterData).filter(
-          (entry) => entry.id >= boterCount || entry.id === 0
+          (entry) => entry.id >= boterCount || entry.id === 0,
         ); // Keep ID 0
 
         // Move entries to archive
@@ -512,7 +512,7 @@ const Oversikt = (props) => {
     } catch (error) {
       console.error(
         "Error during boter restructuring and archive process:",
-        error
+        error,
       );
     }
   }
@@ -636,7 +636,7 @@ const Oversikt = (props) => {
             ))}
           </ul>
           <div className="total-boter">
-            Total: {getTotalBoter()} kr
+            Totalt: {getTotalBoter()} kr
             <br />
             {registreringsMode && (
               <>
@@ -789,7 +789,7 @@ const Oversikt = (props) => {
                       ? bot.brutt.join(", ")
                       : bot.brutt}
                     {!saksomkostningApplied.some(
-                      (entry) => entry.bot_id === bot.id
+                      (entry) => entry.bot_id === bot.id,
                     ) && (
                       <button
                         onClick={() =>
@@ -802,7 +802,8 @@ const Oversikt = (props) => {
                     )}
                     {saksomkostningApplied.some(
                       (entry) =>
-                        entry.bot_id === bot.id && entry.person === bot.brutt[0]
+                        entry.bot_id === bot.id &&
+                        entry.person === bot.brutt[0],
                     ) && (
                       <span className="saksomkostning-text">
                         saksomkostning
@@ -812,7 +813,7 @@ const Oversikt = (props) => {
                   <td className="tablet-hide">
                     {bot.melder}{" "}
                     {!saksomkostningApplied.some(
-                      (entry) => entry.bot_id === bot.id
+                      (entry) => entry.bot_id === bot.id,
                     ) && (
                       <button
                         onClick={() => handleSaksomkostning(bot.melder, bot.id)}
@@ -823,7 +824,7 @@ const Oversikt = (props) => {
                     )}
                     {saksomkostningApplied.some(
                       (entry) =>
-                        entry.bot_id === bot.id && entry.person === bot.melder
+                        entry.bot_id === bot.id && entry.person === bot.melder,
                     ) && (
                       <span className="saksomkostning-text">
                         saksomkostning
