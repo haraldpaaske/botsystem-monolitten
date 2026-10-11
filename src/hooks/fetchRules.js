@@ -14,22 +14,11 @@ const useRules = () => {
       if (data) {
         const rulesList = Object.values(data);
 
-        // Sort the rules based on the number
-        const sortedRules = rulesList.sort((a, b) => {
-          const getRuleNumber = (rule) => {
-            const match = rule.match(/§\s*(\d+)/);
-            return match ? parseInt(match[1], 10) : 0;
-          };
-
-          const numberA = getRuleNumber(a);
-          const numberB = getRuleNumber(b);
-
-          // Sorting logic to move 30 to the end
-          if (numberA === 30) return 1; // Move rule 30 to the end
-          if (numberB === 30) return -1; // Move rule 30 to the end
-
-          return numberA - numberB; // Regular numerical sort for other numbers
-        });
+        // Alphabetize by the rule text, ignoring the paragraph number prefix.
+        const ruleText = (rule) => rule.replace(/^\s*§\s*\d+[a-zæøå]?\s*[.):-]?\s*/i, "").trim();
+        const sortedRules = rulesList.sort((a, b) =>
+          ruleText(a).localeCompare(ruleText(b), "nb", { sensitivity: "base" })
+        );
 
         setRules(sortedRules);
       } else {

@@ -6,14 +6,12 @@ import { db } from "../../firebaseConfig";
 import {
   ref,
   onValue,
-  set,
   update,
   getDatabase,
   query,
   orderByChild,
   equalTo,
   get,
-  push,
 } from "firebase/database";
 import RedigerSpillere from "./RedigerSpillere";
 import StyringsBot from "./StyringsBot";
@@ -24,13 +22,11 @@ const Oversikt = (props) => {
   const players = usePlayers();
   const rules = useRules();
   const [data, setData] = useState([]);
-  const [saksData, setSaksData] = useState([]);
   const [rettsak, setRettsak] = useState("notRettsak");
   const [editing, setEditing] = useState(false);
-  const [saksomkostningApplied, setSaksomkostningApplied] = useState([]);
   const [registreringsMode, setRegistreringsMode] = useState(false);
   const [payments, setPayments] = useState([]);
-  const [loaded, setLoaded] = useState({ boter: false, saks: false, innbetalinger: false });
+  const [loaded, setLoaded] = useState({ boter: false, innbetalinger: false });
   const [loadErrors, setLoadErrors] = useState({});
   const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [filterCriteria, setFilterCriteria] = useState({
@@ -50,8 +46,8 @@ const Oversikt = (props) => {
   };
 
   const balances = useMemo(() => Object.fromEntries(players.map((player) => [
-    player, getPlayerBalance(player, data, saksData, payments),
-  ])), [players, data, saksData, payments]);
+    player, getPlayerBalance(player, data, payments),
+  ])), [players, data, payments]);
 
   const sortedPlayers = useMemo(() => [...players].sort((a, b) =>
     balances[b].remaining - balances[a].remaining || a.localeCompare(b, "nb")), [players, balances]);
@@ -66,7 +62,6 @@ const Oversikt = (props) => {
   useEffect(() => {
     const subscriptions = [
       ["boter", setData],
-      ["saks", (entries) => { setSaksData(entries); setSaksomkostningApplied(entries); }],
       ["innbetalinger", setPayments],
     ].map(([path, receive]) => onValue(ref(db, path), (snapshot) => {
       receive(Object.values(snapshot.val() || {}).filter(Boolean));
@@ -126,22 +121,6 @@ const Oversikt = (props) => {
       })
       .catch((error) => {
         console.error(`Failed to query bots:`, error);
-      });
-  };
-
-  const handleSaksomkostning = async (name, botId) => {
-    const newSaks = {
-      person: name,
-      bot_id: botId,
-    };
-
-    const saksRef = push(ref(db, "saks"));
-    set(saksRef, newSaks)
-      .then(() => {
-        setSaksomkostningApplied((prevState) => [...prevState, newSaks]);
-      })
-      .catch((error) => {
-        console.error("Failed to submit data", error);
       });
   };
 
@@ -386,49 +365,8 @@ const Oversikt = (props) => {
                     {Array.isArray(bot.brutt)
                       ? bot.brutt.join(", ")
                       : bot.brutt}
-                    {!saksomkostningApplied.some(
-                      (entry) => entry.bot_id === bot.id,
-                    ) && (
-                      <button
-                        onClick={() =>
-                          handleSaksomkostning(bot.brutt[0], bot.id)
-                        }
-                        className={rettsak}
-                      >
-                        saksomkostning
-                      </button>
-                    )}
-                    {saksomkostningApplied.some(
-                      (entry) =>
-                        entry.bot_id === bot.id &&
-                        entry.person === bot.brutt[0],
-                    ) && (
-                      <span className="saksomkostning-text">
-                        saksomkostning
-                      </span>
-                    )}
                   </td>
-                  <td className="tablet-hide">
-                    {bot.melder}{" "}
-                    {!saksomkostningApplied.some(
-                      (entry) => entry.bot_id === bot.id,
-                    ) && (
-                      <button
-                        onClick={() => handleSaksomkostning(bot.melder, bot.id)}
-                        className={rettsak}
-                      >
-                        saksomkostning
-                      </button>
-                    )}
-                    {saksomkostningApplied.some(
-                      (entry) =>
-                        entry.bot_id === bot.id && entry.person === bot.melder,
-                    ) && (
-                      <span className="saksomkostning-text">
-                        saksomkostning
-                      </span>
-                    )}
-                  </td>
+                  <td className="tablet-hide">{bot.melder}</td>
                   <td>{bot.paragraf}</td>
                   <td>{bot.datoBrudd}</td>
                   <td className="tablet-hide">{bot.dato}</td>

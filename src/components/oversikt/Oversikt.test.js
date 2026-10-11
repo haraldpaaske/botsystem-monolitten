@@ -23,7 +23,7 @@ const pay = (name, amount) => {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  database = { boter: null, saks: null, innbetalinger: {} };
+  database = { boter: null, innbetalinger: {} };
   subscriptions = {};
   nextId = 0;
   ref.mockImplementation((db, path) => path);
@@ -59,7 +59,6 @@ test("partial payments affect only their recipient and persist after reopening",
   expect(set).toHaveBeenCalledTimes(1);
   expect(set.mock.calls[0][0]).toBe("innbetalinger/payment-1");
   expect(database.boter).toBeNull();
-  expect(database.saks).toBeNull();
   pay("Anna", "60");
   await waitFor(() => expect(within(row("Anna")).getByText("Innbetalt: 100 kr")).toBeInTheDocument());
   expect(within(row("Anna")).getByText("Gjenstår: 0 kr")).toBeInTheDocument();
@@ -115,4 +114,16 @@ test("a payment-read error never shows an incorrect zero paid total", () => {
   act(() => subscriptions.innbetalinger.error(new Error("permission denied")));
   expect(screen.getByRole("alert")).toHaveTextContent("Kunne ikke hente");
   expect(screen.queryByText("Innbetalt: 0 kr")).not.toBeInTheDocument();
+});
+
+
+test("legacy court costs are not loaded, shown or included in balances", () => {
+  database.boter = { fine: { id: 1, brutt: ["Anna"], melder: "Bjørn", enheter: 200 } };
+  database.saks = { old: { person: "Anna", bot_id: 1 } };
+  render(<Oversikt botsjef />);
+  fireEvent.click(screen.getByRole("button", { name: "Rettsak", exact: true }));
+  expect(within(row("Anna")).getByText("Bøter: 200 kr")).toBeInTheDocument();
+  expect(within(row("Anna")).getByText("Gjenstår: 200 kr")).toBeInTheDocument();
+  expect(subscriptions.saks).toBeUndefined();
+  expect(screen.queryByText(/saksomkostning/i)).not.toBeInTheDocument();
 });

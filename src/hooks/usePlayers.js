@@ -13,7 +13,9 @@ const usePlayers = () => {
     const unsubscribe = onValue(playersRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        const playersList = Object.values(data);
+        const playersList = Object.values(data).sort((a, b) =>
+          a.trim().localeCompare(b.trim(), "nb", { sensitivity: "base" })
+        );
         setPlayers(playersList);
       } else {
         setPlayers([]); // handle the case where there's no data

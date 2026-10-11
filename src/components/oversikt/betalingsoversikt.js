@@ -5,15 +5,13 @@ const ore = (value) => {
   return Number.isFinite(number) ? Math.round(number * 100) : 0;
 };
 
-export function getPlayerBalance(player, fines, costs, payments) {
+export function getPlayerBalance(player, fines, payments) {
   const fineTotal = fines
     .filter((fine) => Array.isArray(fine.brutt)
       ? fine.brutt.includes(player)
       : fine.brutt === player)
     .reduce((total, fine) => total + ore(fine.enheter), 0);
-  // Preserve the existing court-cost rate (1 kr per registered cost).
-  const courtCosts = costs.filter((cost) => cost.person === player).length * 100;
-  const total = Math.max(MINSTEBELOP * 100, fineTotal + courtCosts);
+  const total = Math.max(MINSTEBELOP * 100, fineTotal);
   const paid = payments
     .filter((payment) => payment.person === player)
     .reduce((sum, payment) => sum + Math.max(0, ore(payment.belop)), 0);
