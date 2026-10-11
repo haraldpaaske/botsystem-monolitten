@@ -1,6 +1,6 @@
 import usePlayers from "../../hooks/usePlayers";
 import useRules from "../../hooks/fetchRules";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import "../oversikt/oversiktStyles.css";
 import { db } from "../../firebaseConfig";
 import { ref, onValue, update } from "firebase/database";
@@ -8,10 +8,15 @@ import RedigerSpillere from "./RedigerSpillere";
 import StyringsBot from "./StyringsBot";
 import Innbetaling from "./Innbetaling";
 import { readBoter } from "../../utils/boter";
+import { avsluttSesong } from "../../utils/avsluttSesong";
 import { getPlayerBalance, formatKroner } from "./betalingsoversikt";
 
 const Oversikt = (props) => {
   const players = usePlayers();
+  const closing = useRef(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const [seasonError, setSeasonError] = useState("");
+  const [seasonMessage, setSeasonMessage] = useState("");
   const rules = useRules();
   const [data, setData] = useState([]);
   const [rettsak, setRettsak] = useState("notRettsak");
@@ -92,18 +97,30 @@ const Oversikt = (props) => {
     return () => subscriptions.forEach((unsubscribe) => unsubscribe());
   }, []);
 
-  const handleRettsak = () => {
-    if (rettsak === "rettsak") {
-      if (window.confirm("Er rettsaken ferdig?")) {
-        setRettsak("notRettsak");
-        setEditing(false);
-      } else {
-        setRettsak("rettsak");
-        setEditing(true);
-      }
-    } else {
+  const handleRettsak = async () => {
+    if (closing.current) return;
+    setSeasonError("");
+    setSeasonMessage("");
+    if (rettsak !== "rettsak") {
       setRettsak("rettsak");
       setEditing(true);
+      return;
+    }
+    if (!window.confirm("Avslutte sesongen? Alle bøter flyttes til arkivet. Ubetalte beløp overføres som nye bøter, og innbetalingene arkiveres. Minstebeløpet på 100 kr gjelder også i den nye sesongen.")) return;
+    closing.current = true;
+    setIsClosing(true);
+    try {
+      await avsluttSesong();
+      setRettsak("notRettsak");
+      setEditing(false);
+      setRegistreringsMode(false);
+      setShowStyringsBot(false);
+      setSeasonMessage("Sesongen er avsluttet. Bøtene er arkivert og ubetalte beløp er overført.");
+    } catch (error) {
+      setSeasonError(`Kunne ikke avslutte sesongen. ${error.message}`);
+    } finally {
+      closing.current = false;
+      setIsClosing(false);
     }
   };
 
@@ -344,9 +361,12 @@ const Oversikt = (props) => {
         {props.botsjef && (
           <>
             {/* Rettsak Button */}
-            <button onClick={handleRettsak}>
-              {rettsak === "End Of Season" ? "Ferdig med rettsak" : "Rettsak"}
+            <button onClick={handleRettsak} disabled={isClosing}>
+              {isClosing ? "Avslutter sesongen …" : rettsak === "rettsak" ? "Ferdig med rettsak" : "Slutt på seson"}
             </button>
+
+            {seasonError && <p role="alert">{seasonError}</p>}
+            {seasonMessage && <p role="status">{seasonMessage}</p>}
 
             {/* Show the toggle button only when rettsak is active */}
             {rettsak === "rettsak" && (

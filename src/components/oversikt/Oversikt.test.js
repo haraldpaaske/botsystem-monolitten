@@ -1,6 +1,8 @@
 import { act, fireEvent, render, screen, within, waitFor } from "@testing-library/react";
 import { onValue, push, ref, set, update } from "firebase/database";
 import Oversikt from "./Oversikt";
+import { avsluttSesong } from "../../utils/avsluttSesong";
+jest.mock("../../utils/avsluttSesong", () => ({ avsluttSesong: jest.fn() }));
 
 jest.mock("../../hooks/usePlayers", () => () => ["Anna", "Bjørn"]);
 jest.mock("../../hooks/fetchRules", () => () => []);
@@ -121,7 +123,7 @@ test("legacy court costs are not loaded, shown or included in balances", () => {
   database.boter = { fine: { id: 1, brutt: ["Anna"], melder: "Bjørn", enheter: 200 } };
   database.saks = { old: { person: "Anna", bot_id: 1 } };
   render(<Oversikt botsjef />);
-  fireEvent.click(screen.getByRole("button", { name: "Rettsak", exact: true }));
+  fireEvent.click(screen.getByRole("button", { name: "Slutt på seson", exact: true }));
   expect(within(row("Anna")).getByText("Bøter: 200 kr")).toBeInTheDocument();
   expect(within(row("Anna")).getByText("Gjenstår: 200 kr")).toBeInTheDocument();
   expect(subscriptions.saks).toBeUndefined();
@@ -143,7 +145,21 @@ test.each([null, "stored-key"])("amount editing updates the actual database path
   database.boter = key === null ? fine : { [key]: fine };
   update.mockResolvedValue();
   render(<Oversikt botsjef />);
-  fireEvent.click(screen.getByRole("button", { name: "Rettsak", exact: true }));
+  fireEvent.click(screen.getByRole("button", { name: "Slutt på seson", exact: true }));
   fireEvent.change(within(screen.getByRole("table")).getByRole("spinbutton"), { target: { value: "250" } });
   await waitFor(() => expect(update).toHaveBeenCalledWith(key === null ? "boter" : "boter/stored-key", { enheter: 250 }));
+});
+
+
+test("season start enables editing and finish confirms before archiving", async () => {
+  window.confirm = jest.fn().mockReturnValueOnce(false).mockReturnValueOnce(true);
+  avsluttSesong.mockResolvedValue();
+  render(<Oversikt botsjef />);
+  fireEvent.click(screen.getByRole("button", { name: "Slutt på seson" }));
+  expect(avsluttSesong).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Ferdig med rettsak" }));
+  expect(avsluttSesong).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Ferdig med rettsak" }));
+  await screen.findByText(/Sesongen er avsluttet/);
+  expect(avsluttSesong).toHaveBeenCalledTimes(1);
 });
