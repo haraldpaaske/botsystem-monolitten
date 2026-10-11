@@ -1,5 +1,18 @@
 # Getting Started with Create React App
 
+## Firebase Hosting
+
+Hosting is configured for the Firebase project `botsystem-monolitten`.
+With the Firebase CLI installed, sign in and deploy:
+
+```sh
+firebase login
+firebase deploy --only hosting
+```
+
+Deployment automatically runs `npm run build` and publishes the `build` folder.
+All application routes fall back to `index.html` so direct links work with React Router.
+
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
 ## Available Scripts

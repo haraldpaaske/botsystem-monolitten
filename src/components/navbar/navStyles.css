@@ -4,7 +4,7 @@
   display: flex;
   justify-content: space-around;
   align-items: center;
-  background-color: #1b542e;
+  background-color: #1C2E5A;
   padding: 12px 20%;
 }
 
@@ -16,8 +16,8 @@
   margin: 5px 2px;
   padding: 10px 20px;
   font-size: 16px;
-  color: #ffe491;
-  background-color: #a21c20;
+  color: #FEB73B;
+  background-color: #A9112B;
   border: solid 1px #ffe491;
   border-radius: 5px;
   cursor: pointer;
