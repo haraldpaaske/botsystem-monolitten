@@ -1,4 +1,4 @@
-import { get, push, ref, runTransaction } from "firebase/database";
+import { onValue, push, ref, runTransaction } from "firebase/database";
 import { db } from "../firebaseConfig";
 import { readBoter } from "./boter";
 import { getPlayerBalance } from "../components/oversikt/betalingsoversikt";
@@ -51,16 +51,33 @@ export function buildNextSeason(root, seasonId, timestamp) {
 
 export async function avsluttSesong() {
   const rootRef = ref(db);
-  const snapshot = await get(rootRef);
-  const initial = snapshot.val();
-  if (!initial) throw new Error("Ingen sesongdata funnet.");
-  const previousSeason = initial.sesong?.id || null;
-  const seasonId = push(ref(db, "sesongarkiv")).key;
-  const timestamp = new Date().toISOString();
-  const result = await runTransaction(rootRef, (current) => {
-    if (!current || (current.sesong?.id || null) !== previousSeason) return;
-    // Recompute using the latest data if a fine or payment arrived concurrently.
-    return buildNextSeason(current, seasonId, timestamp);
-  }, { applyLocally: false });
-  if (!result.committed) throw new Error("Sesongen er allerede endret. Last siden på nytt.");
+  let unsubscribe;
+  try {
+    // Keep a complete root listener alive until the transaction finishes.
+    // A one-off get() can release the root cache before the transaction starts.
+    const snapshot = await new Promise((resolve, reject) => {
+      unsubscribe = onValue(rootRef, resolve, reject);
+    });
+    const initial = snapshot.val();
+    if (!initial) throw new Error("Ingen sesongdata funnet.");
+    const previousSeason = initial.sesong?.id || null;
+    const seasonId = push(ref(db, "sesongarkiv")).key;
+    const timestamp = new Date().toISOString();
+    let abortReason = "Avslutningen ble avbrutt. Prøv igjen.";
+    const result = await runTransaction(rootRef, (current) => {
+      if (!current) {
+        abortReason = "Sesongdata er ikke tilgjengelige. Last siden på nytt og prøv igjen.";
+        return;
+      }
+      if ((current.sesong?.id || null) !== previousSeason) {
+        abortReason = "Sesongen er allerede endret. Last siden på nytt.";
+        return;
+      }
+      // Recompute using the latest data if a fine or payment arrived concurrently.
+      return buildNextSeason(current, seasonId, timestamp);
+    }, { applyLocally: false });
+    if (!result.committed) throw new Error(abortReason);
+  } finally {
+    unsubscribe?.();
+  }
 }

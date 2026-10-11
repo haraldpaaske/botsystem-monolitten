@@ -1,8 +1,8 @@
-import { get, push, ref, runTransaction } from "firebase/database";
+import { onValue, push, ref, runTransaction } from "firebase/database";
 import { avsluttSesong, buildNextSeason, RESTBOT_TEKST } from "./avsluttSesong";
 jest.mock("../firebaseConfig", () => ({ db: {} }));
 jest.mock("firebase/database", () => ({
-  ref: jest.fn((db, path) => path || "root"), get: jest.fn(),
+  ref: jest.fn((db, path) => path || "root"), onValue: jest.fn(),
   push: jest.fn(), runTransaction: jest.fn(), set: jest.fn(),
 }));
 const now = "2026-10-11T12:00:00.000Z";
@@ -42,7 +42,7 @@ test("legacy root fine and overpayments are preserved", () => {
 
 test("transaction recomputes balances from concurrent payments and rejects a second closure", async () => {
   const original = { boter: { a: fine("Anna", 200) }, roster: { a: "Anna" } };
-  get.mockResolvedValue({ val: () => original });
+  onValue.mockImplementation((target, callback) => { callback({ val: () => original }); return jest.fn(); });
   push.mockReturnValue({ key: "season-1" });
   runTransaction.mockImplementation(async (target, callback, options) => {
     expect(target).toBe("root");
@@ -56,8 +56,50 @@ test("transaction recomputes balances from concurrent payments and rejects a sec
 });
 
 test("aborted transactions surface an error rather than reporting success", async () => {
-  get.mockResolvedValue({ val: () => ({ roster: { a: "Anna" } }) });
+  onValue.mockImplementation((target, callback) => { callback({ val: () => ({ roster: { a: "Anna" } }) }); return jest.fn(); });
   push.mockReturnValue({ key: "season-1" });
   runTransaction.mockResolvedValue({ committed: false });
+  await expect(avsluttSesong()).rejects.toThrow("Avslutningen ble avbrutt");
+});
+
+
+test("keeps the root cache alive through the transaction and releases it afterwards", async () => {
+  let cache = null;
+  const unsubscribe = jest.fn(() => { cache = null; });
+  onValue.mockImplementation((target, callback) => {
+    cache = { roster: { a: "Anna" }, boter: { a: fine("Anna", 200) } };
+    callback({ val: () => cache });
+    return unsubscribe;
+  });
+  push.mockReturnValue({ key: "season-1" });
+  runTransaction.mockImplementation(async (target, callback) => {
+    expect(unsubscribe).not.toHaveBeenCalled();
+    const updated = callback(cache);
+    expect(Object.values(updated.boter)[0].enheter).toBe(200);
+    return { committed: true };
+  });
+  await avsluttSesong();
+  expect(unsubscribe).toHaveBeenCalledTimes(1);
+});
+
+test.each([null, { roster: { a: "Anna" } }])("releases root listener when data is missing or transaction fails", async (root) => {
+  const unsubscribe = jest.fn();
+  onValue.mockImplementation((target, callback) => { callback({ val: () => root }); return unsubscribe; });
+  push.mockReturnValue({ key: "season-1" });
+  runTransaction.mockRejectedValue(new Error("permission denied"));
+  await expect(avsluttSesong()).rejects.toThrow(root ? "permission denied" : "Ingen sesongdata");
+  expect(unsubscribe).toHaveBeenCalledTimes(1);
+});
+
+test("a real season conflict still aborts and is reported accurately", async () => {
+  const unsubscribe = jest.fn();
+  const original = { roster: { a: "Anna" }, sesong: { id: "old" } };
+  onValue.mockImplementation((target, callback) => { callback({ val: () => original }); return unsubscribe; });
+  push.mockReturnValue({ key: "season-1" });
+  runTransaction.mockImplementation(async (target, callback) => {
+    expect(callback({ ...original, sesong: { id: "changed" } })).toBeUndefined();
+    return { committed: false };
+  });
   await expect(avsluttSesong()).rejects.toThrow("Sesongen er allerede endret");
+  expect(unsubscribe).toHaveBeenCalledTimes(1);
 });
