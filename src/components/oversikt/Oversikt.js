@@ -112,7 +112,7 @@ const Oversikt = (props) => {
     );
   };
 
-  //sort players based on antall enheter
+  //sort players based on beløp (kr)
   useEffect(() => {
     const calculateAndSetSortedPlayers = () => {
       const sortedPlayers = players.slice().sort((playerA, playerB) => {
@@ -330,7 +330,7 @@ const Oversikt = (props) => {
         let dato = new Date().toDateString();
         let beskrivelse = `Tildelte bøter er ikke medbrakt, vedkommende staffes med 6, pluss ${
           getSumForPlayer(player) - medbrakt[player]
-        } enhet(er) fra tidligere botfest`;
+        } kr fra tidligere botfest`;
         let enheter = getSumForPlayer(player) - medbrakt[player] + 6;
         let id = Math.max(
           newBots.length + 1,
@@ -354,7 +354,7 @@ const Oversikt = (props) => {
       ) {
         let brutt = player;
         let melder = "Systemet";
-        let paragraf = "Enheter fra tidligere botfest";
+        let paragraf = "Kr fra tidligere botfest";
         let dato = new Date().toDateString();
         let beskrivelse = `Vedkommende har tatt med sine 30+ bøter, men skylder fortsatt ${
           getSumForPlayer(player) - medbrakt[player]
@@ -604,7 +604,7 @@ const Oversikt = (props) => {
                   )}
                 </div>
                 <span className="player-units">
-                  {getSumForPlayer(player)} enheter
+                  {getSumForPlayer(player)} kr
                 </span>
                 {registreringsMode && (
                   <>
@@ -636,7 +636,7 @@ const Oversikt = (props) => {
             ))}
           </ul>
           <div className="total-boter">
-            Total: {getTotalBoter()} enheter
+            Total: {getTotalBoter()} kr
             <br />
             {registreringsMode && (
               <>
@@ -733,7 +733,7 @@ const Oversikt = (props) => {
               />
             </label>
             <label>
-              antall enheter
+              beløp (kr)
               <input
                 type="number"
                 value={filterCriteria.enheter}
@@ -775,7 +775,7 @@ const Oversikt = (props) => {
                 <th>Dato_brudd</th>
                 <th className="tablet-hide">Dato_meldt</th>
                 <th className="mobile-hide">Beskrivelse</th>
-                <th>Antall</th>
+                <th>Beløp (kr)</th>
               </tr>
             </thead>
             <tbody>

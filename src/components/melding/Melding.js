@@ -231,7 +231,7 @@
 
             <br />
             <label>
-              Antall enheter:
+              Beløp (kr):
               <br />
               <input
                 id="antall_enheter"

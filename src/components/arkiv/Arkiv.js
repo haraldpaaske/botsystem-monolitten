@@ -158,7 +158,7 @@ const Arkiv = () => {
             />
           </label>
           <label>
-            antall enheter
+            beløp (kr)
             <input
               type="number"
               value={filterCriteria.enheter}
@@ -177,7 +177,7 @@ const Arkiv = () => {
               <th>Dato_brudd</th>
               <th className="tablet-hide">Dato_meldt</th>
               <th className="mobile-hide">Beskrivelse</th>
-              <th>Antall</th>
+              <th>Beløp (kr)</th>
             </tr>
           </thead>
           <tbody>
