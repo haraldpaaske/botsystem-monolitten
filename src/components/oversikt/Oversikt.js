@@ -106,7 +106,12 @@ const Oversikt = (props) => {
       setEditing(true);
       return;
     }
-    if (!window.confirm("Avslutte sesongen? Alle bøter flyttes til arkivet. Ubetalte beløp overføres som nye bøter, og innbetalingene arkiveres. Minstebeløpet på 100 kr gjelder også i den nye sesongen.")) return;
+    if (
+      !window.confirm(
+        "Avslutte sesongen? Alle bøter flyttes til arkivet. Ubetalte beløp overføres som nye bøter, og innbetalingene arkiveres. Minstebeløpet på 100 kr gjelder også i den nye sesongen.",
+      )
+    )
+      return;
     closing.current = true;
     setIsClosing(true);
     try {
@@ -115,7 +120,9 @@ const Oversikt = (props) => {
       setEditing(false);
       setRegistreringsMode(false);
       setShowStyringsBot(false);
-      setSeasonMessage("Sesongen er avsluttet. Bøtene er arkivert og ubetalte beløp er overført.");
+      setSeasonMessage(
+        "Sesongen er avsluttet. Bøtene er arkivert og ubetalte beløp er overført.",
+      );
     } catch (error) {
       setSeasonError(`Kunne ikke avslutte sesongen. ${error.message}`);
     } finally {
@@ -362,7 +369,11 @@ const Oversikt = (props) => {
           <>
             {/* Rettsak Button */}
             <button onClick={handleRettsak} disabled={isClosing}>
-              {isClosing ? "Avslutter sesongen …" : rettsak === "rettsak" ? "Ferdig med rettsak" : "Slutt på seson"}
+              {isClosing
+                ? "Avslutter sesongen …"
+                : rettsak === "rettsak"
+                  ? "Ferdig med rettsak"
+                  : "Slutt på sesong"}
             </button>
 
             {seasonError && <p role="alert">{seasonError}</p>}
