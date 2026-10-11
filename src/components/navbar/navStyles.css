@@ -18,7 +18,7 @@
   font-size: 16px;
   color: #FEB73B;
   background-color: #A9112B;
-  border: solid 1px #ffe491;
+  border: solid 1px #FEB73B;
   border-radius: 5px;
   cursor: pointer;
 }
@@ -27,26 +27,26 @@ button {
   margin: 5px 2px;
   padding: 5px 10px;
   font-size: 12px;
-  color: #ffe491;
-  background-color: #a21c20;
-  border: solid 1px #ffe491;
+  color: #FEB73B;
+  background-color: #A9112B;
+  border: solid 1px #FEB73B;
   border-radius: 5px;
   cursor: pointer;
 }
 
 .navbar button:hover {
-  background-color: #0e2f1e;
+  background-color: #1C2E5A;
 }
 
 button:hover {
-  background-color: #0e2f1e;
+  background-color: #1C2E5A;
 }
 
 input {
   margin: 5px 2px;
   padding: 7px 14px;
   font-size: 12px;
-  border: solid 2px #ffe491;
+  border: solid 2px #FEB73B;
   border-radius: 5px;
   width: 200px;
   /* You can adjust the width as needed */
@@ -68,7 +68,7 @@ input {
     /* Adjust the margin for closer spacing */
     width: auto;
     /* Let buttons determine their own width */
-    border: solid 0.5px #ffe491;
+    border: solid 0.5px #FEB73B;
     font-size: 11px;
     padding: 3px 6px;
   }
