@@ -3,11 +3,7 @@ import useRules from "../../hooks/fetchRules";
 import { useState, useEffect, useMemo } from "react";
 import "../oversikt/oversiktStyles.css";
 import { db } from "../../firebaseConfig";
-import {
-  ref,
-  onValue,
-  update,
-} from "firebase/database";
+import { ref, onValue, update } from "firebase/database";
 import RedigerSpillere from "./RedigerSpillere";
 import StyringsBot from "./StyringsBot";
 import Innbetaling from "./Innbetaling";
@@ -41,31 +37,58 @@ const Oversikt = (props) => {
     setShowStyringsBot((prev) => !prev); // Toggle the state
   };
 
-  const balances = useMemo(() => Object.fromEntries(players.map((player) => [
-    player, getPlayerBalance(player, data, payments),
-  ])), [players, data, payments]);
+  const balances = useMemo(
+    () =>
+      Object.fromEntries(
+        players.map((player) => [
+          player,
+          getPlayerBalance(player, data, payments),
+        ]),
+      ),
+    [players, data, payments],
+  );
 
-  const sortedPlayers = useMemo(() => [...players].sort((a, b) =>
-    balances[b].remaining - balances[a].remaining || a.localeCompare(b, "nb")), [players, balances]);
+  const sortedPlayers = useMemo(
+    () =>
+      [...players].sort(
+        (a, b) =>
+          balances[b].remaining - balances[a].remaining ||
+          a.localeCompare(b, "nb"),
+      ),
+    [players, balances],
+  );
 
-  const totals = players.reduce((sum, player) => ({
-    total: sum.total + balances[player].total,
-    paid: sum.paid + balances[player].paid,
-    remaining: sum.remaining + balances[player].remaining,
-    credit: sum.credit + balances[player].credit,
-  }), { total: 0, paid: 0, remaining: 0, credit: 0 });
+  const totals = players.reduce(
+    (sum, player) => ({
+      total: sum.total + balances[player].total,
+      paid: sum.paid + balances[player].paid,
+      remaining: sum.remaining + balances[player].remaining,
+      credit: sum.credit + balances[player].credit,
+    }),
+    { total: 0, paid: 0, remaining: 0, credit: 0 },
+  );
 
   useEffect(() => {
     const subscriptions = [
       ["boter", setData],
       ["innbetalinger", setPayments],
-    ].map(([path, receive]) => onValue(ref(db, path), (snapshot) => {
-      receive(path === "boter" ? readBoter(snapshot.val()) : Object.values(snapshot.val() || {}).filter(Boolean));
-      setLoaded((previous) => ({ ...previous, [path]: true }));
-      setLoadErrors((previous) => ({ ...previous, [path]: false }));
-    }, () => {
-      setLoadErrors((previous) => ({ ...previous, [path]: true }));
-    }));
+    ].map(([path, receive]) =>
+      onValue(
+        ref(db, path),
+        (snapshot) => {
+          receive(
+            path === "boter"
+              ? readBoter(snapshot.val())
+              : Object.values(snapshot.val() || {}).filter(Boolean),
+          );
+          setLoaded((previous) => ({ ...previous, [path]: true }));
+          setLoadErrors((previous) => ({ ...previous, [path]: false }));
+        },
+        () => {
+          setLoadErrors((previous) => ({ ...previous, [path]: true }));
+        },
+      ),
+    );
     return () => subscriptions.forEach((unsubscribe) => unsubscribe());
   }, []);
 
@@ -85,7 +108,8 @@ const Oversikt = (props) => {
   };
 
   const handleUnitsChange = async (bot, value) => {
-    const path = bot.databaseKey === null ? "boter" : `boter/${bot.databaseKey}`;
+    const path =
+      bot.databaseKey === null ? "boter" : `boter/${bot.databaseKey}`;
     try {
       // Update only this field, including for a legacy fine stored at the root.
       await update(ref(db, path), { enheter: Number(value) });
@@ -99,7 +123,9 @@ const Oversikt = (props) => {
     const filterData = () => {
       const filtered = data.filter((entry) => {
         // 1) normalize each field
-        const bruttArr = Array.isArray(entry.brutt) ? entry.brutt : [entry.brutt || ""];
+        const bruttArr = Array.isArray(entry.brutt)
+          ? entry.brutt
+          : [entry.brutt || ""];
         const melder = entry.melder ?? "";
         const paragraf = entry.paragraf ?? "";
         const datoBrudd = entry.datoBrudd ?? "";
@@ -158,7 +184,12 @@ const Oversikt = (props) => {
   };
 
   if (Object.values(loadErrors).some(Boolean)) {
-    return <p role="alert">Kunne ikke hente bøter eller innbetalinger. Last siden på nytt for å prøve igjen.</p>;
+    return (
+      <p role="alert">
+        Kunne ikke hente bøter eller innbetalinger. Last siden på nytt for å
+        prøve igjen.
+      </p>
+    );
   }
 
   if (Object.values(loaded).every(Boolean)) {
@@ -166,40 +197,58 @@ const Oversikt = (props) => {
       <>
         {props.botsjef && (
           <button onClick={() => setRegistreringsMode((previous) => !previous)}>
-            {registreringsMode ? "Lukk registrering" : "Registrere innbetalte bøter"}
+            {registreringsMode
+              ? "Lukk registrering"
+              : "Registrere innbetalte bøter"}
           </button>
         )}
 
         <div className="container payment-overview">
           <h2>Oversikt</h2>
-          <p>Minstebeløpet er 100 kr per person. Innbetalinger trekkes fra etterpå.</p>
+          <p>
+            Minstebeløpet er 100 kr per person. Innbetalinger trekkes fra
+            etterpå.
+          </p>
           {registreringsMode && props.botsjef && (
-            <p>Registrer én innbetaling om gangen på personen som har betalt. Beløpet legges til tidligere innbetalinger.</p>
+            <p>
+              Registrer én innbetaling om gangen på personen som har betalt.
+              Beløpet legges til tidligere innbetalinger.
+            </p>
           )}
           <ul>
             {sortedPlayers.map((player) => {
               const balance = balances[player];
-              return <li key={player} className="player-item">
-                <div className="player-name-status">
-                  <span className="bold">{player}</span>
-                  <span className={`status ${balance.remaining === 0 ? "status-done" : "status-missed"}`}>
-                    Innbetalt: {formatKroner(balance.paid)}
-                  </span>
-                </div>
-                <div className="player-balance">
-                  <span>Bøter: {formatKroner(balance.total)}</span>
-                  <strong>Gjenstår: {formatKroner(balance.remaining)}</strong>
-                  {balance.credit > 0 && <span>Til gode: {formatKroner(balance.credit)}</span>}
-                </div>
-                {registreringsMode && props.botsjef && <Innbetaling player={player} />}
-              </li>;
+              return (
+                <li key={player} className="player-item">
+                  <div className="player-name-status">
+                    <span className="bold">{player}</span>
+                    <span
+                      className={`status ${balance.remaining === 0 ? "status-done" : "status-missed"}`}
+                    >
+                      Innbetalt: {formatKroner(balance.paid)}
+                    </span>
+                  </div>
+                  <div className="player-balance">
+                    <span>Bøter: {formatKroner(balance.total)}</span>
+                    <strong>Gjenstår: {formatKroner(balance.remaining)}</strong>
+                    {balance.credit > 0 && (
+                      <span>Til gode: {formatKroner(balance.credit)}</span>
+                    )}
+                  </div>
+                  {registreringsMode && props.botsjef && (
+                    <Innbetaling player={player} />
+                  )}
+                </li>
+              );
             })}
           </ul>
           <div className="total-boter">
             <div>Totale bøter: {formatKroner(totals.total)}</div>
             <div>Totalt innbetalt: {formatKroner(totals.paid)}</div>
             <div>Gjenstår: {formatKroner(totals.remaining)}</div>
-            {totals.credit > 0 && <div>Til gode: {formatKroner(totals.credit)}</div>}
+            {totals.credit > 0 && (
+              <div>Til gode: {formatKroner(totals.credit)}</div>
+            )}
           </div>
         </div>
         {props.botsjef && (
@@ -296,7 +345,7 @@ const Oversikt = (props) => {
           <>
             {/* Rettsak Button */}
             <button onClick={handleRettsak}>
-              {rettsak === "rettsak" ? "Ferdig med rettsak" : "Rettsak"}
+              {rettsak === "End Of Season" ? "Ferdig med rettsak" : "Rettsak"}
             </button>
 
             {/* Show the toggle button only when rettsak is active */}
@@ -329,9 +378,7 @@ const Oversikt = (props) => {
             </thead>
             <tbody>
               {reversedData.map((bot) => (
-                <tr
-                  key={bot.databaseKey ?? "legacy-root"}
-                >
+                <tr key={bot.databaseKey ?? "legacy-root"}>
                   <td>
                     {Array.isArray(bot.brutt)
                       ? bot.brutt.join(", ")
@@ -347,9 +394,7 @@ const Oversikt = (props) => {
                       <input
                         type="number"
                         value={bot.enheter}
-                        onChange={(e) =>
-                          handleUnitsChange(bot, e.target.value)
-                        }
+                        onChange={(e) => handleUnitsChange(bot, e.target.value)}
                         className="units-input"
                       />
                     ) : (
