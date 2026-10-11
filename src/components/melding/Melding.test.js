@@ -2,7 +2,7 @@ import { useState } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import Melding from "./Melding";
 
-jest.mock("../../hooks/usePlayers", () => () => ["Spiller"]);
+jest.mock("../../hooks/usePlayers", () => () => ["Spiller", "Harald", "Håvard", "Tor"]);
 jest.mock("../../hooks/fetchRules", () => () => [
   "§ 1 Forfall (50)",
   "§ 15b Frukt (350)",
@@ -63,4 +63,40 @@ test.each([
   expect(amount).toBeInvalid();
   fireEvent.change(amount, { target: { value: "100" } });
   expect(amount).toBeValid();
+});
+
+
+test("search filters names and allows multiple distinct offenders", () => {
+  render(<Form />);
+  const input = screen.getByRole("combobox", { name: "Hvem har brutt loven?" });
+  fireEvent.change(input, { target: { value: "har" } });
+  expect(screen.getByRole("option", { name: "Harald", exact: true })).toBeInTheDocument();
+  expect(screen.queryByRole("option", { name: "Tor", exact: true })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("option", { name: "Harald", exact: true }));
+  expect(input).toHaveValue("");
+  expect(input).toBeValid();
+  fireEvent.click(input);
+  expect(screen.queryByRole("option", { name: "Harald", exact: true })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("option", { name: "Tor", exact: true }));
+  expect(screen.getAllByRole("button", { name: "fjern" })).toHaveLength(2);
+  fireEvent.click(screen.getAllByRole("button", { name: "fjern" })[0]);
+  fireEvent.click(input);
+  expect(screen.getByRole("option", { name: "Harald", exact: true })).toBeInTheDocument();
+});
+
+test("reporter can be chosen with keyboard and unknown names are invalid", () => {
+  render(<Form />);
+  const input = screen.getByRole("combobox", { name: "Hvem er du?" });
+  fireEvent.change(input, { target: { value: "HÅ" } });
+  fireEvent.keyDown(input, { key: "ArrowDown" });
+  expect(input).toHaveAttribute("aria-activedescendant");
+  fireEvent.keyDown(input, { key: "Enter" });
+  expect(input).toHaveValue("Håvard");
+  expect(input).toBeValid();
+  expect(input).toHaveAttribute("aria-expanded", "false");
+  fireEvent.change(input, { target: { value: "Ukjent navn" } });
+  expect(screen.getByRole("status")).toHaveTextContent("Ingen navn funnet");
+  expect(input).toBeInvalid();
+  fireEvent.keyDown(input, { key: "Escape" });
+  expect(input).toHaveAttribute("aria-expanded", "false");
 });

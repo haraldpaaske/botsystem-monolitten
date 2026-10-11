@@ -1,6 +1,7 @@
   import { useState, useEffect, useRef } from "react";
   import usePlayers from "../../hooks/usePlayers";
   import useRules from "../../hooks/fetchRules";
+  import PlayerSelect from "./PlayerSelect";
   import "./meldStyles.css";
   import { db } from "../../firebaseConfig";
   import { ref, onValue, set, off } from "firebase/database";
@@ -15,18 +16,6 @@
     const [gullPaGul, setGullPaGulv] = useState(false);
     const [selectedTime, setSelectedTime] = useState("");
     const rules = useRules();
-    const [selectedBrutt, setSelectedBrutt] = useState("");
-
-
-
-    const handleBruttSelectChange = (e) => {
-      const newBrutt = e.target.value;
-      setSelectedBrutt(newBrutt); // Set the selected player
-      updateFormData("brutt", [...brutt, newBrutt]); // Add the selected player to the formData
-      setSelectedBrutt(""); // Reset the select field
-    };
-    
-
     useEffect(() => {
       setGullPaGulv(paragraf.includes("Gull på gulv"));
     }, [paragraf]);
@@ -125,26 +114,15 @@
       <>
         <form id="mform" onSubmit={handleSubmit}>
           <div id="formDiv">
-            <label>
-              Hvem har brutt loven?
-              <br />
-              <select
-                value={selectedBrutt}
-                onChange={handleBruttSelectChange}
-                required={brutt.length === 0}
-              >
-                <option value="" disabled>
-                  Velg spiller
-                </option>
-                {players
-                  .filter((p) => !brutt.includes(p)) // Filter out selected players
-                  .map((p) => (
-                    <option key={p} value={p}>
-                      {p}
-                    </option>
-                  ))}
-              </select>
-            </label>
+            <PlayerSelect
+              id="brutt-player"
+              label="Hvem har brutt loven?"
+              players={players.filter((player) => !brutt.includes(player))}
+              onChange={(player) => {
+                if (player && !brutt.includes(player)) updateFormData("brutt", [...brutt, player]);
+              }}
+              required={brutt.length === 0}
+            />
             {brutt.map((selectedPlayer) => (
               <span key={selectedPlayer}>
                 {selectedPlayer}
@@ -160,24 +138,14 @@
             ))}
 
             <br />
-            <label>
-              Hvem er du?
-              <br />
-              <select
-                value={melder}
-                onChange={(e) => updateFormData("melder", e.target.value)}
-                required
-              >
-                <option value="" disabled>
-                  Velg spiller
-                </option>
-                {players.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <PlayerSelect
+              id="melder-player"
+              label="Hvem er du?"
+              players={players}
+              value={melder}
+              onChange={(player) => updateFormData("melder", player)}
+              required
+            />
             <br />
             <label>
               Når skjedde lovbruddet

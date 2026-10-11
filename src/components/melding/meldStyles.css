@@ -21,23 +21,27 @@
 #mform select, 
 #mform input, 
 #mform textarea {
-  width: 100%;  /* Adjust this value to change the width of the inputs */
-  margin-top:5px;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  margin: 5px 0 0;
   padding: 10px ;
   border: 1px solid #ccc;
   border-radius: 5px;
   font-size: 16px;
-  height: 35px;
+  min-height: 48px;
+  height: auto;
+  line-height: 1.5;
 }
 
 #mform textarea {
   height: 100px; /* Adjust this value if you want a different initial height for the textarea */
   padding: 10px;
-  width: 94%;
+  width: 100%;
 }
 
 #antall_enheter{
-  width: 94%;
+  width: 100%;
 }
 
 
@@ -66,4 +70,51 @@ button[type="submit"] {
 
 #mform button:hover {
   background-color: #0e2f1e;
+}
+
+/* Keep names readable and touch targets comfortable on small screens. */
+#mform .player-select { position: relative; margin-bottom: 20px; }
+#mform .player-select label { margin-bottom: 0; }
+#mform .player-select-dropdown {
+  position: absolute;
+  z-index: 10;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #bbb;
+  border-radius: 5px;
+  box-shadow: 0 4px 12px #0002;
+}
+#mform .player-select-dropdown ul { list-style: none; margin: 0; padding: 0; }
+#mform .player-select-dropdown li { margin: 0; padding: 0; }
+#mform .player-select-dropdown button {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  margin: 0;
+  padding: 12px;
+  border: 0;
+  border-radius: 0;
+  background: white;
+  color: #222;
+  font-size: 16px;
+  line-height: 1.5;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+#mform .player-select-dropdown button:hover,
+#mform .player-select-dropdown button[aria-selected="true"] { background: #e8edf7; }
+#mform .player-select-dropdown p { margin: 0; padding: 12px; }
+#mform input:focus-visible, #mform select:focus-visible, #mform textarea:focus-visible {
+  outline: 2px solid #1c2e5a;
+  outline-offset: 2px;
+}
+@media (max-width: 600px) {
+  #mform { padding: 20px 16px; }
+  #formDiv { max-width: 100%; }
 }
