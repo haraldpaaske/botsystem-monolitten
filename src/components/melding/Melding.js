@@ -107,6 +107,14 @@
       }
     };
 
+    const handleParagrafChange = (e) => {
+      const selectedRule = e.target.value;
+      // Fixed rates are stored at the end of the rule name, e.g. (50) or (50 kr).
+      const amount = selectedRule.match(/\(\s*(\d+)\s*(?:kr\.?)?\s*\)\s*$/i);
+      updateFormData("paragraf", selectedRule);
+      updateFormData("enheter", amount ? Number(amount[1]) : "");
+    };
+
     const handleRemoveBrutt = (playerToRemove) => {
       updateFormData(
         "brutt",
@@ -186,7 +194,7 @@
               <br />
               <select
                 value={paragraf}
-                onChange={(e) => updateFormData("paragraf", e.target.value)}
+                onChange={handleParagrafChange}
                 required
               >
                 <option value="" disabled>
@@ -237,11 +245,11 @@
                 id="antall_enheter"
                 type="number"
                 value={enheter}
-                inputmode="numeric"
+                inputMode="numeric"
                 pattern="[0-9]*"
                 onChange={handleNumericInputChange}
                 min={1}
-                max={30}
+                placeholder="Skriv inn beløp"
                 required
               />
             </label>

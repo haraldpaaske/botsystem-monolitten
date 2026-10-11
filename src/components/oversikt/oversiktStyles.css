@@ -172,3 +172,42 @@ tr:hover {
 }
 
 
+
+.payment-overview .player-item {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.payment-overview .player-name-status {
+  width: auto;
+  flex: 1;
+  min-width: 150px;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 6px;
+}
+.payment-overview .status { font-size: 14px; }
+.payment-overview .status-done { color: #246331; }
+.payment-overview .player-balance {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: right;
+}
+.payment-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 0;
+}
+.payment-form label { display: flex; flex-direction: column; gap: 5px; }
+.payment-form input { width: 120px; margin: 0; }
+.payment-form button { margin: 0; }
+.payment-form [role="alert"] { color: #a21c20; width: 100%; }
+.payment-form [role="status"] { color: #246331; width: 100%; }
+.payment-overview .total-boter div { margin-top: 6px; }
+@media (max-width: 650px) {
+  .payment-overview { width: auto; padding: 14px; }
+  .payment-overview .player-balance { font-size: 14px; }
+}

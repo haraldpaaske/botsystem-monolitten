@@ -1,41 +1,37 @@
 import usePlayers from "../../hooks/usePlayers";
 import useRules from "../../hooks/fetchRules";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import "../oversikt/oversiktStyles.css";
 import { db } from "../../firebaseConfig";
 import {
   ref,
   onValue,
   set,
-  off,
   update,
   getDatabase,
   query,
   orderByChild,
   equalTo,
   get,
-  remove,
   push,
 } from "firebase/database";
 import RedigerSpillere from "./RedigerSpillere";
 import StyringsBot from "./StyringsBot";
+import Innbetaling from "./Innbetaling";
+import { getPlayerBalance, formatKroner } from "./betalingsoversikt";
 
 const Oversikt = (props) => {
   const players = usePlayers();
   const rules = useRules();
-  const [sortedPlayers, setSortedPlayers] = useState([]);
   const [data, setData] = useState([]);
   const [saksData, setSaksData] = useState([]);
-  const [antallBoter, setAntallBoter] = useState(1000);
   const [rettsak, setRettsak] = useState("notRettsak");
   const [editing, setEditing] = useState(false);
   const [saksomkostningApplied, setSaksomkostningApplied] = useState([]);
   const [registreringsMode, setRegistreringsMode] = useState(false);
-  const [medbrakt, setMedbrakt] = useState({});
-  const [medbraktRegistrertClicked, setMedbraktRegistertClicked] = useState({});
-  const [jsonDataFull, setJsonDataFull] = useState(null);
-  const [jsonDataBoter, setJsonDataBoter] = useState(null);
-  const dato = new Date().toDateString().split(" ");
+  const [payments, setPayments] = useState([]);
+  const [loaded, setLoaded] = useState({ boter: false, saks: false, innbetalinger: false });
+  const [loadErrors, setLoadErrors] = useState({});
   const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [filterCriteria, setFilterCriteria] = useState({
     forbryter: "",
@@ -53,167 +49,40 @@ const Oversikt = (props) => {
     setShowStyringsBot((prev) => !prev); // Toggle the state
   };
 
-  const playersWithoutBoter = useMemo(
-    () =>
-      players.filter((player) => !data.some((bot) => bot.melder === player)),
-    [players, data],
-  );
+  const balances = useMemo(() => Object.fromEntries(players.map((player) => [
+    player, getPlayerBalance(player, data, saksData, payments),
+  ])), [players, data, saksData, payments]);
 
-  const handleCheckboxChange = (player) => {
-    setMedbraktRegistertClicked((prevClicked) => ({
-      ...prevClicked,
-      [player]: !prevClicked[player],
+  const sortedPlayers = useMemo(() => [...players].sort((a, b) =>
+    balances[b].remaining - balances[a].remaining || a.localeCompare(b, "nb")), [players, balances]);
+
+  const totals = players.reduce((sum, player) => ({
+    total: sum.total + balances[player].total,
+    paid: sum.paid + balances[player].paid,
+    remaining: sum.remaining + balances[player].remaining,
+    credit: sum.credit + balances[player].credit,
+  }), { total: 0, paid: 0, remaining: 0, credit: 0 });
+
+  useEffect(() => {
+    const subscriptions = [
+      ["boter", setData],
+      ["saks", (entries) => { setSaksData(entries); setSaksomkostningApplied(entries); }],
+      ["innbetalinger", setPayments],
+    ].map(([path, receive]) => onValue(ref(db, path), (snapshot) => {
+      receive(Object.values(snapshot.val() || {}).filter(Boolean));
+      setLoaded((previous) => ({ ...previous, [path]: true }));
+      setLoadErrors((previous) => ({ ...previous, [path]: false }));
+    }, () => {
+      setLoadErrors((previous) => ({ ...previous, [path]: true }));
     }));
-  };
-
-  const areAllCheckboxesChecked = () => {
-    return sortedPlayers.every((player) => medbraktRegistrertClicked[player]);
-  };
-
-  const getSumForPlayer = useCallback(
-    (player) => {
-      let total = 0;
-
-      try {
-        total = data
-          .filter((entry) => {
-            // Check if `entry.brutt` is valid and can use `includes`
-            if (!entry.brutt || typeof entry.brutt.includes !== "function") {
-              console.log("Problematic entry:", entry);
-              return false;
-            }
-            return entry.brutt.includes(player) && entry.id < antallBoter;
-          })
-          .reduce((sum, entry) => sum + entry.enheter, 0);
-      } catch (error) {
-        console.error("Error during filtering or reducing data:", error);
-      }
-
-      const saksomkostningCount = saksData.filter(
-        (entry) => entry.person === player,
-      ).length;
-      total += saksomkostningCount;
-
-      if (total < 6) {
-        total = 6;
-      }
-      if (playersWithoutBoter.includes(player)) {
-        total += 6;
-      }
-      return total;
-    },
-    [antallBoter, data, saksData, playersWithoutBoter],
-  );
-
-  const getTotalBoter = () => {
-    return players.reduce(
-      (total, player) => total + getSumForPlayer(player),
-      0,
-    );
-  };
-
-  //sort players based on beløp (kr)
-  useEffect(() => {
-    const calculateAndSetSortedPlayers = () => {
-      const sortedPlayers = players.slice().sort((playerA, playerB) => {
-        const unitsA = getSumForPlayer(playerA);
-        const unitsB = getSumForPlayer(playerB);
-        return unitsB - unitsA; // Sort in descending order based on units
-      });
-
-      setSortedPlayers(sortedPlayers);
-    };
-
-    calculateAndSetSortedPlayers();
-  }, [players, data, antallBoter, saksData, getSumForPlayer]);
-
-  //get antall bøter før rettsak
-  useEffect(() => {
-    const dbRef = ref(db, "antall_boter/0/antall");
-
-    const handleDataChange = (snapshot) => {
-      if (snapshot && snapshot.val() && snapshot.val()) {
-        setAntallBoter(snapshot.val());
-      }
-    };
-
-    onValue(dbRef, handleDataChange);
-
-    // Cleanup
-    return () => {
-      off(dbRef, handleDataChange); // Use the same function reference for cleaning up
-    };
+    return () => subscriptions.forEach((unsubscribe) => unsubscribe());
   }, []);
-
-  //get bøter
-  useEffect(() => {
-    const dbRef = ref(db, "boter");
-    const fullRef = ref(db);
-
-    const handleDataChange = (snapshot) => {
-      if (snapshot && snapshot.val()) {
-        const jsonDataFromFirebase = snapshot.val();
-        const jsonDataAsString = JSON.stringify(jsonDataFromFirebase);
-        setData(snapshot.val());
-        setJsonDataBoter(jsonDataAsString);
-      }
-    };
-
-    const handleDataChange2 = (snapshot) => {
-      if (snapshot && snapshot.val()) {
-        const jsonDataFromFirebase = snapshot.val(); // Assuming it's an object
-        const jsonDataAsString = JSON.stringify(jsonDataFromFirebase);
-
-        setJsonDataFull(jsonDataAsString);
-      }
-    }; // This closing brace was missing.
-
-    onValue(dbRef, handleDataChange);
-    onValue(fullRef, handleDataChange2);
-
-    // Cleanup
-    return () => {
-      off(dbRef, handleDataChange); // Use the same function reference for cleaning up
-      off(fullRef, handleDataChange2); // Use the same function reference for cleaning up
-    };
-  }, []);
-
-  //get saksomkostninger
-  useEffect(() => {
-    const dbRef = ref(db, "saks");
-
-    const handleDataChange = (snapshot) => {
-      if (snapshot && snapshot.val() && snapshot.val()) {
-        setSaksData(snapshot.val());
-        setSaksomkostningApplied(snapshot.val());
-      }
-    };
-
-    onValue(dbRef, handleDataChange);
-
-    // Cleanup
-    return () => {
-      off(dbRef, handleDataChange); // Use the same function reference for cleaning up
-    };
-  }, []);
-
-  const setRettsakAntall = () => {
-    const db = getDatabase();
-    set(ref(db, "antall_boter/0"), { antall: data.length })
-      .then(() => {
-        console.log("Data written successfully!");
-      })
-      .catch((error) => {
-        console.error("Error writing to Firebase Database", error);
-      });
-  };
 
   const handleRettsak = () => {
     if (rettsak === "rettsak") {
       if (window.confirm("Er rettsaken ferdig?")) {
         setRettsak("notRettsak");
         setEditing(false);
-        setRettsakAntall();
       } else {
         setRettsak("rettsak");
         setEditing(true);
@@ -260,169 +129,13 @@ const Oversikt = (props) => {
       });
   };
 
-  const handleRegistrerBoter = (value, player) => {
-    setMedbraktRegistertClicked({
-      ...medbraktRegistrertClicked,
-      [player]: true,
-    });
-  };
-
-  function confirmNewBotPeriode() {
-    const db = getDatabase();
-
-    var userConfirmation = window.confirm(
-      "Vil du fortsette inn i ny bot-periode? dette vil slette alle gamle bøter og legge til de nye som ble meldt inn etter rettsak.",
-    );
-
-    if (userConfirmation) {
-      // User pressed "OK"
-      if (window.confirm("Bekreft: Begynne ny bot-periode")) {
-        alert("Ny bot periode er i gang!");
-        ferdigRegistertMedbrakte();
-
-        setRegistreringsMode(false);
-
-        // New functionality to delete "saksomkostninger"
-        const saksRef = ref(db, "saks");
-        get(saksRef)
-          .then((snapshot) => {
-            if (snapshot.exists()) {
-              const saksData = snapshot.val();
-              Object.keys(saksData).forEach((key) => {
-                if (key !== "0") {
-                  // Skip the entry with key '0'
-                  const saksToDeleteRef = ref(db, `saks/${key}`);
-                  remove(saksToDeleteRef).catch((error) => {
-                    console.error("Failed to delete saksomkostning", error);
-                  });
-                }
-              });
-            }
-          })
-          .catch((error) => {
-            console.error("Error fetching saksomkostninger", error);
-          });
-
-        set(ref(db, "antall_boter/0"), { antall: 10000 })
-          .then(() => {
-            console.log("D10000!");
-          })
-          .catch((error) => {
-            console.error("Error writing to Firebase Database", error);
-          });
-      }
-    } else {
-      // User pressed "Cancel"
-      alert("You pressed Cancel!");
-    }
-  }
-
-  const ferdigRegistertMedbrakte = async () => {
-    const db = getDatabase();
-    let newBots = []; // Array to hold new bots to be added
-
-    for (let player of players) {
-      // Calculate the Ida/Helle bots and other necessary bots
-      if (getSumForPlayer(player) > medbrakt[player] && medbrakt[player] < 30) {
-        let brutt = [player];
-        let melder = "Systemet";
-        let paragraf = "§ 27 Ida/Helle-paragrafen";
-        let dato = new Date().toDateString();
-        let beskrivelse = `Tildelte bøter er ikke medbrakt, vedkommende staffes med 6, pluss ${
-          getSumForPlayer(player) - medbrakt[player]
-        } kr fra tidligere botfest`;
-        let enheter = getSumForPlayer(player) - medbrakt[player] + 6;
-        let id = Math.max(
-          newBots.length + 1,
-          data.length - antallBoter + newBots.length + 1,
-        );
-        const idahelle = {
-          brutt,
-          melder,
-          datoBrudd: "",
-          paragraf,
-          dato,
-          beskrivelse,
-          enheter,
-          id,
-        };
-        newBots.push(idahelle); // Add to the new bots array
-      } else if (
-        medbrakt[player] >= 30 &&
-        getSumForPlayer(player) > 30 &&
-        medbrakt[player] <= getSumForPlayer(player)
-      ) {
-        let brutt = player;
-        let melder = "Systemet";
-        let paragraf = "Kr fra tidligere botfest";
-        let dato = new Date().toDateString();
-        let beskrivelse = `Vedkommende har tatt med sine 30+ bøter, men skylder fortsatt ${
-          getSumForPlayer(player) - medbrakt[player]
-        }`;
-        let enheter = getSumForPlayer(player) - medbrakt[player];
-        let id = Math.max(
-          newBots.length + 1,
-          data.length - antallBoter + newBots.length + 1,
-        ); // Updated ID calculation
-        const restebot = {
-          brutt,
-          melder,
-          paragraf,
-          dato,
-          beskrivelse,
-          enheter,
-          id,
-        };
-        newBots.push(restebot); // Add to the new bots array
-      }
-    }
-
-    // After all new bots are added, proceed with archiving
-    await restructureBoter();
-
-    // Batch add all new bots to the database in one go
-    const updates = {};
-    newBots.forEach((bot) => {
-      updates[`boter/${bot.id}`] = bot;
-    });
-
-    try {
-      await update(ref(db), updates);
-      console.log("All bots added successfully!");
-    } catch (error) {
-      console.error("Failed to update data", error);
-    }
-  };
-
-  const handleMedbraktChange = (playerName, newValue) => {
-    const updatedMedbrakt = {
-      ...medbrakt,
-      [playerName]: parseInt(newValue, 10),
-    };
-    setMedbrakt(updatedMedbrakt);
-  };
-
-  const handleRegMode = () => {
-    if (registreringsMode) {
-      setRegistreringsMode(false);
-    } else {
-      setRegistreringsMode(true);
-
-      const allUpdates = {};
-      for (let player of players) {
-        allUpdates[player] = getSumForPlayer(player);
-      }
-      setMedbrakt(allUpdates);
-    }
-  };
-
   const handleSaksomkostning = async (name, botId) => {
     const newSaks = {
       person: name,
       bot_id: botId,
     };
 
-    const saksRef = ref(db, `saks/${saksData.length}`);
+    const saksRef = push(ref(db, "saks"));
     set(saksRef, newSaks)
       .then(() => {
         setSaksomkostningApplied((prevState) => [...prevState, newSaks]);
@@ -432,96 +145,11 @@ const Oversikt = (props) => {
       });
   };
 
-  async function restructureBoter() {
-    const db = getDatabase();
-    let boterCount;
-
-    // Step 1: Get the 'antall_boter' value (last trial ID)
-    try {
-      const snapshot = await get(ref(db, "antall_boter/0/antall"));
-      if (snapshot.exists()) {
-        boterCount = snapshot.val(); // Last known trial ID
-        console.log("Last rettsak ID:", boterCount);
-      } else {
-        console.log("No antall_boter found");
-        return;
-      }
-    } catch (error) {
-      console.error("Error fetching antall_boter:", error);
-      return;
-    }
-
-    try {
-      const boterRef = ref(db, "boter");
-      const arkivRef = ref(db, "arkiv");
-
-      const boterSnapshot = await get(boterRef);
-      if (boterSnapshot.exists()) {
-        const boterData = boterSnapshot.val();
-
-        // Preserve the entry with ID 0 if it exists
-        const entryZero = boterData[0] || null;
-
-        // Filter out entries for archiving (before last trial)
-        const entriesToArchive = Object.values(boterData).filter(
-          (entry) => entry.id < boterCount && entry.id !== 0,
-        ); // Exclude ID 0
-
-        // Filter out entries to keep (new period entries)
-        const entriesToKeep = Object.values(boterData).filter(
-          (entry) => entry.id >= boterCount || entry.id === 0,
-        ); // Keep ID 0
-
-        // Move entries to archive
-        for (const entry of entriesToArchive) {
-          const newArkivEntryRef = push(arkivRef); // Get unique archive reference
-          await set(newArkivEntryRef, entry);
-        }
-
-        // Remove all boter entries
-        await remove(boterRef);
-
-        // Step 3: Renumber and re-add kept entries
-        let updatedBoterEntries = {};
-
-        // Add back the entry with ID 0 if it existed
-        if (entryZero) {
-          updatedBoterEntries[0] = entryZero;
-        }
-
-        entriesToKeep
-          .filter((entry) => entry.id !== 0) // Skip ID 0, as it's already added
-          .forEach((entry, index) => {
-            const newID = index + 1; // Start numbering from 1
-            entry.id = newID; // Update internal ID field
-            updatedBoterEntries[newID] = entry; // Store with new ID as key
-          });
-
-        // Add back to boter with updated IDs
-        await set(boterRef, updatedBoterEntries);
-
-        // Update antall_boter to reflect the new starting point
-        // await set(ref(db, "antall_boter/0"), {
-        //   antall: Object.keys(updatedBoterEntries).length,
-        // });
-
-        console.log("Boter restructuring and archive process complete.");
-      } else {
-        console.log("No boter found.");
-      }
-    } catch (error) {
-      console.error(
-        "Error during boter restructuring and archive process:",
-        error,
-      );
-    }
-  }
-
   useEffect(() => {
     const filterData = () => {
       const filtered = data.filter((entry) => {
         // 1) normalize each field
-        const bruttArr = Array.isArray(entry.brutt) ? entry.brutt : [];
+        const bruttArr = Array.isArray(entry.brutt) ? entry.brutt : [entry.brutt || ""];
         const melder = entry.melder ?? "";
         const paragraf = entry.paragraf ?? "";
         const datoBrudd = entry.datoBrudd ?? "";
@@ -579,78 +207,49 @@ const Oversikt = (props) => {
     }));
   };
 
-  if (data.length !== 0) {
+  if (Object.values(loadErrors).some(Boolean)) {
+    return <p role="alert">Kunne ikke hente bøter eller innbetalinger. Last siden på nytt for å prøve igjen.</p>;
+  }
+
+  if (Object.values(loaded).every(Boolean)) {
     return (
       <>
         {props.botsjef && (
-          <>
-            <button onClick={handleRegMode}>Registrere medbrakte bøter</button>
-            {/* <button onClick={handleRegSpillere}>fjern/legg til spillere</button> */}
-          </>
+          <button onClick={() => setRegistreringsMode((previous) => !previous)}>
+            {registreringsMode ? "Lukk registrering" : "Registrere innbetalte bøter"}
+          </button>
         )}
 
-        <div className="container">
+        <div className="container payment-overview">
           <h2>Oversikt</h2>
+          <p>Minstebeløpet er 100 kr per person. Innbetalinger trekkes fra etterpå.</p>
+          {registreringsMode && props.botsjef && (
+            <p>Registrer én innbetaling om gangen på personen som har betalt. Beløpet legges til tidligere innbetalinger.</p>
+          )}
           <ul>
-            {sortedPlayers.map((player) => (
-              <li key={player} className="player-item">
+            {sortedPlayers.map((player) => {
+              const balance = balances[player];
+              return <li key={player} className="player-item">
                 <div className="player-name-status">
                   <span className="bold">{player}</span>
-                  {playersWithoutBoter.includes(player) && (
-                    <span className="status status-missed"> Meldt ❌</span>
-                  )}
-                  {!playersWithoutBoter.includes(player) && (
-                    <span className="status status-done"> Meldt ✅</span>
-                  )}
+                  <span className={`status ${balance.remaining === 0 ? "status-done" : "status-missed"}`}>
+                    Innbetalt: {formatKroner(balance.paid)}
+                  </span>
                 </div>
-                <span className="player-units">
-                  {getSumForPlayer(player)} kr
-                </span>
-                {registreringsMode && (
-                  <>
-                    <div>
-                      <input
-                        id={`registrerteBoter${player}`}
-                        type="number"
-                        value={medbrakt[player]}
-                        max={getSumForPlayer(player)}
-                        min={0}
-                        onChange={(e) =>
-                          handleMedbraktChange(player, e.target.value)
-                        }
-                        disabled={medbraktRegistrertClicked[player]}
-                      />
-                      <input
-                        type="checkbox"
-                        id={`registrerCheckbox-${player}`}
-                        checked={medbraktRegistrertClicked[player]}
-                        onChange={() => handleCheckboxChange(player)}
-                      />
-                      <label htmlFor={`registrerCheckbox-${player}`}>
-                        motatt
-                      </label>
-                    </div>
-                  </>
-                )}
-              </li>
-            ))}
+                <div className="player-balance">
+                  <span>Bøter: {formatKroner(balance.total)}</span>
+                  <strong>Gjenstår: {formatKroner(balance.remaining)}</strong>
+                  {balance.credit > 0 && <span>Til gode: {formatKroner(balance.credit)}</span>}
+                </div>
+                {registreringsMode && props.botsjef && <Innbetaling player={player} />}
+              </li>;
+            })}
           </ul>
           <div className="total-boter">
-            Totalt: {getTotalBoter()} kr
-            <br />
-            {registreringsMode && (
-              <>
-                <button onClick={() => setMedbraktRegistertClicked({})}>
-                  begyn på nytt
-                </button>
-                <button
-                  onClick={confirmNewBotPeriode}
-                  disabled={!areAllCheckboxesChecked()}
-                >
-                  Ferdig
-                </button>
-              </>
-            )}
+            <div>Totale bøter: {formatKroner(totals.total)}</div>
+            <div>Totalt innbetalt: {formatKroner(totals.paid)}</div>
+            <div>Gjenstår: {formatKroner(totals.remaining)}</div>
+            {totals.credit > 0 && <div>Til gode: {formatKroner(totals.credit)}</div>}
           </div>
         </div>
         {props.botsjef && (
@@ -782,7 +381,6 @@ const Oversikt = (props) => {
               {reversedData.map((bot) => (
                 <tr
                   key={bot.id}
-                  className={bot.id >= antallBoter ? "faded-row" : ""}
                 >
                   <td>
                     {Array.isArray(bot.brutt)
@@ -860,7 +458,7 @@ const Oversikt = (props) => {
   } else {
     return (
       <>
-        <h1>Loading...</h1>
+        <p role="status">Henter bøter og innbetalinger …</p>
       </>
     );
   }
