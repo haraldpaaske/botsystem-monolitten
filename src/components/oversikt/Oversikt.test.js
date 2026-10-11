@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, within, waitFor } from "@testing-library/react";
-import { onValue, push, ref, set } from "firebase/database";
+import { onValue, push, ref, set, update } from "firebase/database";
 import Oversikt from "./Oversikt";
 
 jest.mock("../../hooks/usePlayers", () => () => ["Anna", "Bjørn"]);
@@ -126,4 +126,24 @@ test("legacy court costs are not loaded, shown or included in balances", () => {
   expect(within(row("Anna")).getByText("Gjenstår: 200 kr")).toBeInTheDocument();
   expect(subscriptions.saks).toBeUndefined();
   expect(screen.queryByText(/saksomkostning/i)).not.toBeInTheDocument();
+});
+
+test("first fine accidentally stored at root is displayed once and included in the balance", () => {
+  database.boter = { brutt: ["Anna"], melder: "Bjørn", paragraf: "§ 18 Spy på fest (200)",
+    enheter: 200, beskrivelse: "Første bot", dato: "Sun Oct 11 2026", datoBrudd: "2026-10-11" };
+  render(<Oversikt botsjef />);
+  expect(screen.getByText("Første bot")).toBeInTheDocument();
+  expect(within(screen.getByRole("table")).getAllByRole("row")).toHaveLength(2);
+  expect(within(row("Anna")).getByText("Bøter: 200 kr")).toBeInTheDocument();
+});
+
+
+test.each([null, "stored-key"])("amount editing updates the actual database path (%s)", async (key) => {
+  const fine = { id: [], brutt: ["Anna"], enheter: 200 };
+  database.boter = key === null ? fine : { [key]: fine };
+  update.mockResolvedValue();
+  render(<Oversikt botsjef />);
+  fireEvent.click(screen.getByRole("button", { name: "Rettsak", exact: true }));
+  fireEvent.change(within(screen.getByRole("table")).getByRole("spinbutton"), { target: { value: "250" } });
+  await waitFor(() => expect(update).toHaveBeenCalledWith(key === null ? "boter" : "boter/stored-key", { enheter: 250 }));
 });

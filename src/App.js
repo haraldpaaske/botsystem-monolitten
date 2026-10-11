@@ -43,7 +43,6 @@ function App() {
     beskrivelse: "",
     enheter: 1,
     dato: new Date().toDateString(),
-    id: [],
   });
 
   // Function to update form data

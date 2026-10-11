@@ -7,15 +7,11 @@ import {
   ref,
   onValue,
   update,
-  getDatabase,
-  query,
-  orderByChild,
-  equalTo,
-  get,
 } from "firebase/database";
 import RedigerSpillere from "./RedigerSpillere";
 import StyringsBot from "./StyringsBot";
 import Innbetaling from "./Innbetaling";
+import { readBoter } from "../../utils/boter";
 import { getPlayerBalance, formatKroner } from "./betalingsoversikt";
 
 const Oversikt = (props) => {
@@ -64,7 +60,7 @@ const Oversikt = (props) => {
       ["boter", setData],
       ["innbetalinger", setPayments],
     ].map(([path, receive]) => onValue(ref(db, path), (snapshot) => {
-      receive(Object.values(snapshot.val() || {}).filter(Boolean));
+      receive(path === "boter" ? readBoter(snapshot.val()) : Object.values(snapshot.val() || {}).filter(Boolean));
       setLoaded((previous) => ({ ...previous, [path]: true }));
       setLoadErrors((previous) => ({ ...previous, [path]: false }));
     }, () => {
@@ -88,40 +84,15 @@ const Oversikt = (props) => {
     }
   };
 
-  const handleUnitsChange = (id, value) => {
-    const db = getDatabase();
-    const botRef = ref(db, "boter");
-    const q = query(botRef, orderByChild("id"), equalTo(id));
-    get(q)
-      .then((snapshot) => {
-        if (snapshot.exists()) {
-          snapshot.forEach((childSnapshot) => {
-            const botKey = childSnapshot.key;
-
-            const updatedBot = {
-              ...childSnapshot.val(),
-              enheter: Number(value),
-            };
-
-            const specificBotRef = ref(db, `boter/${botKey}`);
-            update(specificBotRef, updatedBot)
-              .then(() => {
-                const updatedBots = data.map((bot) =>
-                  bot.id === id ? updatedBot : bot,
-                );
-                setData(updatedBots);
-              })
-              .catch((error) => {
-                console.error(`Failed to update bot with id ${id}:`, error);
-              });
-          });
-        } else {
-          console.log(`No bot found with id ${id}`);
-        }
-      })
-      .catch((error) => {
-        console.error(`Failed to query bots:`, error);
-      });
+  const handleUnitsChange = async (bot, value) => {
+    const path = bot.databaseKey === null ? "boter" : `boter/${bot.databaseKey}`;
+    try {
+      // Update only this field, including for a legacy fine stored at the root.
+      await update(ref(db, path), { enheter: Number(value) });
+    } catch (error) {
+      console.error("Failed to update fine:", error);
+      window.alert("Kunne ikke oppdatere beløpet. Prøv igjen.");
+    }
   };
 
   useEffect(() => {
@@ -359,7 +330,7 @@ const Oversikt = (props) => {
             <tbody>
               {reversedData.map((bot) => (
                 <tr
-                  key={bot.id}
+                  key={bot.databaseKey ?? "legacy-root"}
                 >
                   <td>
                     {Array.isArray(bot.brutt)
@@ -377,7 +348,7 @@ const Oversikt = (props) => {
                         type="number"
                         value={bot.enheter}
                         onChange={(e) =>
-                          handleUnitsChange(bot.id, e.target.value)
+                          handleUnitsChange(bot, e.target.value)
                         }
                         className="units-input"
                       />

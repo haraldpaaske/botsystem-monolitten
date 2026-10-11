@@ -3,16 +3,17 @@
   import useRules from "../../hooks/fetchRules";
   import PlayerSelect from "./PlayerSelect";
   import "./meldStyles.css";
-  import { db } from "../../firebaseConfig";
-  import { ref, onValue, set, off } from "firebase/database";
+  import { saveBot } from "../../utils/boter";
 
   const Melding = ({ formData, updateFormData }) => {
-    const { brutt, melder, datoBrudd, paragraf, beskrivelse, enheter, id } =
+    const { brutt, melder, datoBrudd, paragraf, beskrivelse, enheter } =
       formData;
     const players = usePlayers();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitCooldown, setSubmitCooldown] = useState(false);
     const submitButtonRef = useRef(null);
+    const submitting = useRef(false);
+    const [submitError, setSubmitError] = useState("");
     const [gullPaGul, setGullPaGulv] = useState(false);
     const [selectedTime, setSelectedTime] = useState("");
     const rules = useRules();
@@ -41,21 +42,11 @@
       }
     }, [submitCooldown]);
 
-    useEffect(() => {
-      const dbRef = ref(db, "boter");
-      const handleDataChange = (snapshot) => {
-        if (snapshot.exists()) {
-          updateFormData("id", Object.keys(snapshot.val()).length);
-        }
-      };
-
-      onValue(dbRef, handleDataChange);
-      return () => off(dbRef, handleDataChange);
-    }, [updateFormData]);
-
     const handleSubmit = async (e) => {
       e.preventDefault();
-      if (isSubmitting || submitCooldown) return;
+      if (submitting.current || isSubmitting || submitCooldown) return;
+      submitting.current = true;
+      setSubmitError("");
 
       setIsSubmitting(true);
       setSubmitCooldown(true);
@@ -74,15 +65,17 @@
         dato: new Date().toDateString(),
         beskrivelse: finalDescription,
         enheter: Number(enheter),
-        id,
       };
 
       try {
-        await set(ref(db, `boter/${id}`), bot);
+        await saveBot(bot);
         window.location.href = "/done";
       } catch (error) {
         console.error("Failed to submit data", error);
+        setSubmitError("Kunne ikke lagre boten. Prøv igjen.");
+        setSubmitCooldown(false);
       } finally {
+        submitting.current = false;
         setIsSubmitting(false);
       }
     };
@@ -230,6 +223,7 @@
               {submitCooldown ? "Sender inn..." : "Meld bot"}
             </button>
             {submitCooldown && <p>Sender inn</p>}
+            {submitError && <p role="alert">{submitError}</p>}
           </div>
         </form>
       </>

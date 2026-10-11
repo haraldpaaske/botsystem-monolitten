@@ -1,19 +1,15 @@
 import { useState, useEffect, useRef } from "react";
 import usePlayers from "../../hooks/usePlayers";
-import useRules from "../../hooks/fetchRules";
 import "../melding/meldStyles.css";
-import { db } from "../../firebaseConfig";
-import { ref, onValue, set, off } from "firebase/database";
+import { saveBot } from "../../utils/boter";
 
 const StyringsBot = ({ onClose }) => {
   // Accept onClose as a prop
   const players = usePlayers() || []; // Ensure it's always an array
-  const rules = useRules() || [];
 
   const [brutt, setBrutt] = useState([]);
   const [beskrivelse, setBeskrivelse] = useState("");
   const [enheter, setEnheter] = useState(-1);
-  const [id, setId] = useState(0);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitCooldown, setSubmitCooldown] = useState(false);
@@ -31,19 +27,6 @@ const StyringsBot = ({ onClose }) => {
     }
   }, [submitCooldown]);
 
-  useEffect(() => {
-    const dbRef = ref(db, "boter");
-    const handleDataChange = (snapshot) => {
-      if (snapshot.exists() && snapshot.val()) {
-        setId(Object.keys(snapshot.val()).length);
-      } else {
-        setId(0);
-      }
-    };
-    onValue(dbRef, handleDataChange);
-    return () => off(dbRef, handleDataChange);
-  }, []);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (isSubmitting || submitCooldown) return;
@@ -59,11 +42,10 @@ const StyringsBot = ({ onClose }) => {
       dato: new Date().toDateString(),
       beskrivelse,
       enheter: Number(enheter),
-      id,
     };
 
     try {
-      await set(ref(db, `boter/${id}`), bot);
+      await saveBot(bot);
 
       // Reset form fields
       setBrutt([]);
