@@ -372,7 +372,7 @@ const Oversikt = (props) => {
               {isClosing
                 ? "Avslutter sesongen …"
                 : rettsak === "rettsak"
-                  ? "Ferdig med rettsak"
+                  ? "Start ny sesong"
                   : "Slutt på sesong"}
             </button>
 
